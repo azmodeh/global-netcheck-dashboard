@@ -1,19 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapView } from "./components/MapView";
-import { CheckInput } from "./components/CheckInput";
 import { MeshGradient } from "./components/MeshGradient";
 import { LiquidGlass } from "./components/LiquidGlass";
 import { Sparkles } from "./components/Sparkles";
 import { AnimatedFooter } from "./components/AnimatedFooter";
 import { DNSRecords } from "./components/DNSRecords";
 import { IPInfoPanel } from "./components/IPInfoPanel";
-import type { CheckResponse } from "~backend/netcheck/check";
+import type { CheckResponse } from "~backend/netcheck/info";
+import backend from "~backend/client";
 
 export default function App() {
   const [result, setResult] = useState<CheckResponse | null>(
     null
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await backend.netcheck.info();
+        setResult(data);
+      } catch (err) {
+        console.error("Failed to load data:", err);
+        setError("Failed to load network information");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white relative">
@@ -26,22 +44,28 @@ export default function App() {
             Global NetCheck Dashboard
           </h1>
           <p className="text-gray-400 text-lg">
-            Checker Vista - Monitor network from global nodes
+            Checker Vista - Real-time network monitoring
           </p>
         </header>
 
-        <LiquidGlass>
-          <CheckInput
-            onResult={setResult}
-            loading={loading}
-            setLoading={setLoading}
-          />
-          
-          {result && (
-            <div className="mt-8 space-y-8">
-              {result.ipInfo && <IPInfoPanel info={result.ipInfo} />}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+          </div>
+        )}
+
+        {error && (
+          <div className="max-w-4xl mx-auto bg-red-500/10 border border-red-500/50 rounded-lg p-4 text-center">
+            {error}
+          </div>
+        )}
+
+        {result && !loading && (
+          <LiquidGlass>
+            <div className="space-y-8">
+              <IPInfoPanel info={result.ipInfo} />
               
-              {result.dnsRecords && result.dnsRecords.length > 0 && (
+              {result.dnsRecords.length > 0 && (
                 <DNSRecords records={result.dnsRecords} />
               )}
 
@@ -49,7 +73,7 @@ export default function App() {
               
               <div className="grid gap-4">
                 <h3 className="text-xl font-semibold mb-2">
-                  Node Status
+                  Global Node Status
                 </h3>
                 {result.nodes.map((node, idx) => (
                   <div
@@ -78,8 +102,8 @@ export default function App() {
                 ))}
               </div>
             </div>
-          )}
-        </LiquidGlass>
+          </LiquidGlass>
+        )}
       </div>
 
       <AnimatedFooter />

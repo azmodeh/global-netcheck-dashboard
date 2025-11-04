@@ -1,57 +1,70 @@
-import type { IPInfo } from "~backend/netcheck/check";
+import type { IPInfo } from "~backend/netcheck/info";
 
 interface Props {
   info: IPInfo;
 }
 
 export function IPInfoPanel({ info }: Props) {
+  const items = [
+    { label: "IP Address", value: info.ip, mono: true },
+    { label: "Hostname", value: info.hostname },
+    { label: "Country", value: info.country },
+    { label: "Region", value: info.region },
+    { label: "City", value: info.city },
+    {
+      label: "Coordinates",
+      value:
+        info.latitude && info.longitude
+          ? `${info.latitude.toFixed(4)}, ${info.longitude.toFixed(4)}`
+          : undefined,
+      mono: true,
+    },
+    { label: "ISP", value: info.isp },
+    { label: "Organization", value: info.organization },
+    { label: "Timezone", value: info.timezone },
+    {
+      label: "Currency",
+      value: info.currencyCode
+        ? `${info.currencyCode} - ${info.currencyName}`
+        : undefined,
+    },
+    { label: "Calling Code", value: info.callingCode },
+    { label: "Connection", value: info.connectionType },
+    {
+      label: "Security",
+      value: info.isTor
+        ? "🔴 Tor Network"
+        : info.isProxy
+        ? "🟡 Proxy"
+        : "🟢 Direct",
+    },
+  ];
+
   return (
     <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
       <h3 className="text-xl font-semibold mb-4">
         IP Information
       </h3>
       
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div>
-          <p className="text-sm text-gray-400">IP Address</p>
-          <p className="font-mono text-lg">{info.ip}</p>
-        </div>
-        
-        {info.country && (
-          <div>
-            <p className="text-sm text-gray-400">Country</p>
-            <p className="font-semibold">{info.country}</p>
-          </div>
-        )}
-        
-        {info.region && (
-          <div>
-            <p className="text-sm text-gray-400">Region</p>
-            <p className="font-semibold">{info.region}</p>
-          </div>
-        )}
-        
-        {info.city && (
-          <div>
-            <p className="text-sm text-gray-400">City</p>
-            <p className="font-semibold">{info.city}</p>
-          </div>
-        )}
-        
-        {info.latitude && info.longitude && (
-          <div>
-            <p className="text-sm text-gray-400">Coordinates</p>
-            <p className="font-mono text-sm">
-              {info.latitude.toFixed(4)}, {info.longitude.toFixed(4)}
-            </p>
-          </div>
-        )}
-        
-        {info.isp && (
-          <div className="col-span-2 md:col-span-1">
-            <p className="text-sm text-gray-400">ISP</p>
-            <p className="font-semibold text-sm">{info.isp}</p>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map(
+          (item, idx) =>
+            item.value && (
+              <div key={idx}>
+                <p className="text-sm text-gray-400">
+                  {item.label}
+                </p>
+                <p
+                  className={
+                    item.mono
+                      ? "font-mono text-sm"
+                      : "font-semibold text-sm"
+                  }
+                >
+                  {item.value}
+                </p>
+              </div>
+            )
         )}
       </div>
     </div>

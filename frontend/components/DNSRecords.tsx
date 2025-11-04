@@ -1,4 +1,4 @@
-import type { DNSRecord } from "~backend/netcheck/check";
+import type { DNSRecord } from "~backend/netcheck/info";
 
 interface Props {
   records: DNSRecord[];

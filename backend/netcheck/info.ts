@@ -2,12 +2,7 @@ import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import dns from "dns/promises";
 
-const ip2locationToken = secret("IP2LocationToken");
-
-export interface CheckRequest {
-  host: string;
-  type?: "ping" | "http" | "dns" | "all";
-}
+const ipGeoApiKey = secret("IPGeoLocationKey");
 
 export interface DNSRecord {
   type: string;
@@ -17,12 +12,22 @@ export interface DNSRecord {
 
 export interface IPInfo {
   ip: string;
+  hostname?: string;
   country?: string;
+  countryCode?: string;
   region?: string;
   city?: string;
   latitude?: number;
   longitude?: number;
   isp?: string;
+  organization?: string;
+  timezone?: string;
+  currencyCode?: string;
+  currencyName?: string;
+  callingCode?: string;
+  connectionType?: string;
+  isTor?: boolean;
+  isProxy?: boolean;
 }
 
 export interface NodeResult {
@@ -35,11 +40,10 @@ export interface NodeResult {
 }
 
 export interface CheckResponse {
-  host: string;
-  timestamp: string;
+  ipInfo: IPInfo;
+  dnsRecords: DNSRecord[];
   nodes: NodeResult[];
-  dnsRecords?: DNSRecord[];
-  ipInfo?: IPInfo;
+  timestamp: string;
 }
 
 async function getDNSRecords(
@@ -49,10 +53,7 @@ async function getDNSRecords(
 
   try {
     const a = await dns.resolve4(hostname);
-    a.forEach((ip) => records.push({ 
-      type: "A", 
-      value: ip 
-    }));
+    a.forEach((ip) => records.push({ type: "A", value: ip }));
   } catch (e) {
     // Ignore
   }
@@ -92,10 +93,7 @@ async function getDNSRecords(
   try {
     const txt = await dns.resolveTxt(hostname);
     txt.forEach((record) =>
-      records.push({ 
-        type: "TXT", 
-        value: record.join(" ") 
-      })
+      records.push({ type: "TXT", value: record.join(" ") })
     );
   } catch (e) {
     // Ignore
@@ -124,45 +122,85 @@ async function getDNSRecords(
   return records;
 }
 
-interface IP2LocationResponse {
-  error?: string;
-  country_name?: string;
-  region_name?: string;
-  city_name?: string;
-  latitude?: number;
-  longitude?: number;
-  as?: string;
+interface IPGeoResponse {
+  ip?: string;
+  hostname?: string;
+  location?: {
+    country_name?: string;
+    country_code2?: string;
+    state_prov?: string;
+    city?: string;
+    latitude?: string;
+    longitude?: string;
+  };
+  network?: {
+    asn?: {
+      organization?: string;
+    };
+    connection_type?: string;
+    company?: {
+      name?: string;
+    };
+  };
+  time_zone?: {
+    name?: string;
+  };
+  currency?: {
+    code?: string;
+    name?: string;
+  };
+  country_metadata?: {
+    calling_code?: string;
+  };
+  security?: {
+    is_tor?: boolean;
+    is_proxy?: boolean;
+  };
 }
 
-async function getIPInfo(ip: string): Promise<IPInfo | undefined> {
+async function getIPInfo(
+  host: string
+): Promise<IPInfo | undefined> {
   try {
-    const token = ip2locationToken();
-    const url = `https://api.ip2location.io/?key=${token}&ip=${ip}`;
+    const apiKey = ipGeoApiKey();
+    const url = `https://api.ipgeolocation.io/ipgeo?apiKey=${apiKey}&ip=${host}&include=security`;
     const response = await fetch(url);
-    const data = await response.json() as IP2LocationResponse;
-
-    if (data.error) {
-      return undefined;
-    }
+    const data = await response.json() as IPGeoResponse;
 
     return {
-      ip,
-      country: data.country_name,
-      region: data.region_name,
-      city: data.city_name,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      isp: data.as,
+      ip: data.ip || host,
+      hostname: data.hostname,
+      country: data.location?.country_name,
+      countryCode: data.location?.country_code2,
+      region: data.location?.state_prov,
+      city: data.location?.city,
+      latitude: data.location?.latitude
+        ? parseFloat(data.location.latitude)
+        : undefined,
+      longitude: data.location?.longitude
+        ? parseFloat(data.location.longitude)
+        : undefined,
+      isp: data.network?.company?.name,
+      organization: data.network?.asn?.organization,
+      timezone: data.time_zone?.name,
+      currencyCode: data.currency?.code,
+      currencyName: data.currency?.name,
+      callingCode: data.country_metadata?.calling_code,
+      connectionType: data.network?.connection_type,
+      isTor: data.security?.is_tor,
+      isProxy: data.security?.is_proxy,
     };
   } catch (e) {
     return undefined;
   }
 }
 
-// Checks network connectivity from multiple global nodes
-export const check = api<CheckRequest, CheckResponse>(
-  { expose: true, method: "POST", path: "/check" },
-  async (req): Promise<CheckResponse> => {
+// Gets network info and DNS records automatically
+export const info = api<void, CheckResponse>(
+  { expose: true, method: "GET", path: "/info" },
+  async (): Promise<CheckResponse> => {
+    const ipInfo = await getIPInfo("");
+    
     const nodes: NodeResult[] = [
       {
         location: "Tehran",
@@ -230,30 +268,16 @@ export const check = api<CheckRequest, CheckResponse>(
       },
     ];
 
-    let dnsRecords: DNSRecord[] | undefined;
-    let ipInfo: IPInfo | undefined;
-
-    if (
-      req.type === "dns" || 
-      req.type === "all" || 
-      !req.type
-    ) {
-      dnsRecords = await getDNSRecords(req.host);
-
-      if (dnsRecords.length > 0) {
-        const aRecord = dnsRecords.find((r) => r.type === "A");
-        if (aRecord) {
-          ipInfo = await getIPInfo(aRecord.value);
-        }
-      }
+    let dnsRecords: DNSRecord[] = [];
+    if (ipInfo?.hostname) {
+      dnsRecords = await getDNSRecords(ipInfo.hostname);
     }
 
     return {
-      host: req.host,
-      timestamp: new Date().toISOString(),
-      nodes,
+      ipInfo: ipInfo || { ip: "unknown" },
       dnsRecords,
-      ipInfo,
+      nodes,
+      timestamp: new Date().toISOString(),
     };
   }
 );
