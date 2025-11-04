@@ -5,6 +5,8 @@ import { MeshGradient } from "./components/MeshGradient";
 import { LiquidGlass } from "./components/LiquidGlass";
 import { Sparkles } from "./components/Sparkles";
 import { AnimatedFooter } from "./components/AnimatedFooter";
+import { DNSRecords } from "./components/DNSRecords";
+import { IPInfoPanel } from "./components/IPInfoPanel";
 import type { CheckResponse } from "~backend/netcheck/check";
 
 export default function App() {
@@ -36,10 +38,19 @@ export default function App() {
           />
           
           {result && (
-            <div className="mt-8">
+            <div className="mt-8 space-y-8">
+              {result.ipInfo && <IPInfoPanel info={result.ipInfo} />}
+              
+              {result.dnsRecords && result.dnsRecords.length > 0 && (
+                <DNSRecords records={result.dnsRecords} />
+              )}
+
               <MapView nodes={result.nodes} />
               
-              <div className="mt-6 grid gap-4">
+              <div className="grid gap-4">
+                <h3 className="text-xl font-semibold mb-2">
+                  Node Status
+                </h3>
                 {result.nodes.map((node, idx) => (
                   <div
                     key={idx}
