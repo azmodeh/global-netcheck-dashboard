@@ -26,6 +26,30 @@ export const check = api<CheckRequest, CheckResponse>(
   async (req): Promise<CheckResponse> => {
     const nodes: NodeResult[] = [
       {
+        location: "Tehran",
+        country: "IR",
+        lat: 35.6892,
+        lng: 51.389,
+        status: "online",
+        responseTime: Math.random() * 30 + 5,
+      },
+      {
+        location: "Isfahan",
+        country: "IR",
+        lat: 32.6546,
+        lng: 51.6680,
+        status: "online",
+        responseTime: Math.random() * 25 + 5,
+      },
+      {
+        location: "Mashhad",
+        country: "IR",
+        lat: 36.2605,
+        lng: 59.6168,
+        status: "online",
+        responseTime: Math.random() * 35 + 8,
+      },
+      {
         location: "New York",
         country: "US",
         lat: 40.7128,
